@@ -14,8 +14,16 @@ DOWNLOAD_FOLDER = 'downloads'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(DOWNLOAD_FOLDER, exist_ok=True)
 
-results = []
 stop_flag = threading.Event()
+
+def clean_download_folder():
+    """Limpa o diretório de downloads antes de criar novos arquivos."""
+    for file in os.listdir(DOWNLOAD_FOLDER):
+        file_path = os.path.join(DOWNLOAD_FOLDER, file)
+        if os.path.isfile(file_path) or os.path.islink(file_path):
+            os.unlink(file_path)
+        elif os.path.isdir(file_path):
+            shutil.rmtree(file_path)
 
 @app.after_request
 def set_headers(response):
@@ -49,42 +57,43 @@ def stop_processing():
 
 @app.route('/download', methods=['GET'])
 def download_zip():
+    clean_download_folder()
     zip_path = os.path.join(DOWNLOAD_FOLDER, 'artigos.zip')
     with zipfile.ZipFile(zip_path, 'w') as zipf:
         for root, _, files in os.walk(DOWNLOAD_FOLDER):
             for file in files:
-                if file != 'artigos.zip':  # Avoid adding the zip file itself
+                if file != 'artigos.zip':  # Evita adicionar o próprio arquivo ZIP
                     zipf.write(os.path.join(root, file), arcname=file)
     return send_file(zip_path, as_attachment=True)
 
 def process_file(file_path, source):
-    global results
     results = []
-    df = pd.read_excel(file_path)
-    if 'DOI' not in df.columns:
-        results.append({'DOI': 'N/A', 'Status': "Erro: Coluna 'DOI' não encontrada", 'Fonte': source})
-        socketio.emit('log', {'message': "Erro: Coluna 'DOI' não encontrada no arquivo."})
-        return
+    try:
+        df = pd.read_excel(file_path)
+        if 'DOI' not in df.columns:
+            raise ValueError("Coluna 'DOI' não encontrada no arquivo.")
 
-    for index, doi in enumerate(df['DOI']):
-        if stop_flag.is_set():
-            results.append({'DOI': doi, 'Status': "Interrompido pelo usuário", 'Fonte': source})
-            socketio.emit('log', {'message': f"Processamento interrompido no DOI: {doi}"})
-            break
+        for index, doi in enumerate(df['DOI']):
+            if stop_flag.is_set():
+                results.append({'DOI': doi, 'Status': "Interrompido pelo usuário", 'Fonte': source})
+                socketio.emit('log', {'message': f"Processamento interrompido no DOI: {doi}"})
+                break
 
-        save_path = os.path.join(DOWNLOAD_FOLDER, f"{doi.replace('/', '_')}.pdf")
-        socketio.emit('log', {'message': f"Processando DOI {index + 1}/{len(df)}: {doi}"})
-        if source == 'unpaywall':
-            download_from_unpaywall(doi, save_path)
-        elif source == 'scihub':
-            download_from_scihub(doi, save_path)
+            save_path = os.path.join(DOWNLOAD_FOLDER, f"{doi.replace('/', '_')}.pdf")
+            socketio.emit('log', {'message': f"Processando DOI {index + 1}/{len(df)}: {doi}"})
 
-        # Emit progress updates to the client
-        socketio.emit('progress', {'current': index + 1, 'total': len(df)})
+            if source == 'unpaywall':
+                download_from_unpaywall(doi, save_path, results)
+            elif source == 'scihub':
+                download_from_scihub(doi, save_path, results)
 
-    generate_report()
+            socketio.emit('progress', {'current': index + 1, 'total': len(df)})
 
-def download_from_unpaywall(doi, save_path):
+        generate_report(results)
+    except Exception as e:
+        socketio.emit('log', {'message': f"Erro inesperado: {str(e)}"})
+
+def download_from_unpaywall(doi, save_path, results):
     base_url = "https://api.unpaywall.org/v2/"
     params = {"email": "correia.benhur@gmail.com"}
     url = f"{base_url}{doi.strip()}"
@@ -98,18 +107,15 @@ def download_from_unpaywall(doi, save_path):
             best_oa_location = data.get('best_oa_location')
             if best_oa_location and best_oa_location.get('url_for_pdf'):
                 pdf_url = best_oa_location['url_for_pdf']
-                download_pdf(pdf_url, save_path, doi, 'Unpaywall')
+                download_pdf(pdf_url, save_path, doi, 'Unpaywall', results)
             else:
                 results.append({'DOI': doi, 'Status': "Erro: Nenhum PDF disponível", 'Fonte': 'Unpaywall'})
-                socketio.emit('log', {'message': f"Erro: Nenhum PDF disponível para DOI {doi}"})
         else:
             results.append({'DOI': doi, 'Status': "Erro: Não disponível em acesso aberto", 'Fonte': 'Unpaywall'})
-            socketio.emit('log', {'message': f"Erro: Artigo não disponível em acesso aberto para DOI {doi}"})
     except Exception as e:
         results.append({'DOI': doi, 'Status': f"Erro: {e}", 'Fonte': 'Unpaywall'})
-        socketio.emit('log', {'message': f"Erro ao buscar DOI {doi}: {e}"})
 
-def download_from_scihub(doi, save_path):
+def download_from_scihub(doi, save_path, results):
     sci_hub_base_url = "https://sci-hub.se"
     try:
         response = requests.post(sci_hub_base_url, data={'request': doi}, timeout=20)
@@ -132,15 +138,13 @@ def download_from_scihub(doi, save_path):
             pdf_link = 'https://' + pdf_link
 
         if pdf_link:
-            download_pdf(pdf_link, save_path, doi, 'Sci-Hub')
+            download_pdf(pdf_link, save_path, doi, 'Sci-Hub', results)
         else:
             results.append({'DOI': doi, 'Status': "Erro: Nenhum PDF encontrado", 'Fonte': 'Sci-Hub'})
-            socketio.emit('log', {'message': f"Erro: Nenhum PDF encontrado para DOI {doi}"})
     except Exception as e:
         results.append({'DOI': doi, 'Status': f"Erro: {e}", 'Fonte': 'Sci-Hub'})
-        socketio.emit('log', {'message': f"Erro ao buscar DOI {doi} no Sci-Hub: {e}"})
 
-def download_pdf(pdf_url, save_path, doi, source):
+def download_pdf(pdf_url, save_path, doi, source, results):
     try:
         response = requests.get(pdf_url, timeout=30)
         response.raise_for_status()
@@ -150,9 +154,8 @@ def download_pdf(pdf_url, save_path, doi, source):
         socketio.emit('log', {'message': f"PDF baixado com sucesso: DOI {doi}"})
     except Exception as e:
         results.append({'DOI': doi, 'Status': f"Erro ao baixar PDF: {e}", 'Fonte': source})
-        socketio.emit('log', {'message': f"Erro ao baixar PDF para DOI {doi}: {e}"})
 
-def generate_report():
+def generate_report(results):
     report_path = os.path.join(DOWNLOAD_FOLDER, "relatorio_download.xlsx")
     df = pd.DataFrame(results)
     df.to_excel(report_path, index=False, engine='openpyxl')
@@ -160,3 +163,4 @@ def generate_report():
 
 if __name__ == "__main__":
     socketio.run(app, host="0.0.0.0", port=5000)
+

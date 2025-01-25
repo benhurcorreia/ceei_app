@@ -67,17 +67,30 @@
         // Submete o formulário de upload
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
+            const submitButton = form.querySelector('button[type="submit"]');
+            submitButton.disabled = true; // Evitar múltiplos envios
             const formData = new FormData(form);
-            const response = await fetch('/upload', { method: 'POST', body: formData });
-            const result = await response.json();
-            alert(result.message || result.error);
+            try {
+                const response = await fetch('/upload', { method: 'POST', body: formData });
+                const result = await response.json();
+                alert(result.message || result.error);
+            } catch (error) {
+                console.error('Erro no envio:', error);
+                alert('Ocorreu um erro ao enviar o arquivo.');
+            } finally {
+                submitButton.disabled = false; // Reativar botão após envio
+            }
         });
 
         // Envia requisição para parar o processamento
         stopButton.addEventListener('click', async () => {
-            const response = await fetch('/stop', { method: 'POST' });
-            const result = await response.json();
-            alert(result.message);
+            try {
+                const response = await fetch('/stop', { method: 'POST' });
+                const result = await response.json();
+                alert(result.message);
+            } catch (error) {
+                console.error('Erro ao interromper processamento:', error);
+            }
         });
 
         // Atualiza os logs em tempo real
@@ -99,6 +112,14 @@
         // Botão para baixar os arquivos compactados
         downloadButton.addEventListener('click', () => {
             window.location.href = '/download';
+        });
+
+        // Verificar conexão com o servidor SocketIO
+        socket.on('connect', () => {
+            console.log('Conectado ao servidor SocketIO');
+        });
+        socket.on('connect_error', (error) => {
+            console.error('Erro de conexão com SocketIO:', error);
         });
     </script>
 </body>
