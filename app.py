@@ -7,7 +7,7 @@ from bs4 import BeautifulSoup
 from flask_socketio import SocketIO, emit
 import zipfile
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder="static")
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode="eventlet")  # Permitir conexões de diferentes origens
 UPLOAD_FOLDER = 'uploads'
 DOWNLOAD_FOLDER = 'downloads'
