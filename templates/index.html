@@ -67,6 +67,7 @@
         // Submete o formulário de upload
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
+            console.log("Enviando formulário..."); // Log para verificar envio
             const submitButton = form.querySelector('button[type="submit"]');
             submitButton.disabled = true; // Evitar múltiplos envios
             const formData = new FormData(form);
@@ -95,6 +96,7 @@
 
         // Atualiza os logs em tempo real
         socket.on('log', (data) => {
+            console.log("Log recebido do servidor:", data.message); // Log para debug
             const message = document.createElement('p');
             message.textContent = data.message;
             logContainer.appendChild(message);
@@ -103,6 +105,7 @@
 
         // Atualiza o progresso em tempo real
         socket.on('progress', (data) => {
+            console.log("Progresso recebido:", data); // Log para debug
             const { current, total } = data;
             const percentage = (current / total) * 100;
             progressBar.style.width = `${percentage}%`;

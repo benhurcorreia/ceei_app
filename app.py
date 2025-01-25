@@ -59,12 +59,14 @@ def upload_file():
         # Start the download process in a separate thread
         stop_flag.clear()
         threading.Thread(target=process_file, args=(file_path, source)).start()
+        socketio.emit('log', {'message': 'Arquivo recebido e processamento iniciado!'})
         return jsonify({'message': 'Arquivo enviado e processamento iniciado!'})
     return jsonify({'error': 'Nenhum arquivo enviado.'}), 400
 
 @app.route('/stop', methods=['POST'])
 def stop_processing():
     stop_flag.set()
+    socketio.emit('log', {'message': 'Processamento interrompido pelo usuário.'})
     return jsonify({'message': 'Processamento interrompido com sucesso!'})
 
 @app.route('/download', methods=['GET'])
@@ -81,6 +83,7 @@ def download_zip():
 def process_file(file_path, source):
     results = []
     try:
+        socketio.emit('log', {'message': 'Iniciando o processamento do arquivo...'})
         df = pd.read_excel(file_path)
         if 'DOI' not in df.columns:
             raise ValueError("Coluna 'DOI' não encontrada no arquivo.")
@@ -175,4 +178,5 @@ def generate_report(results):
 
 if __name__ == "__main__":
     socketio.run(app, host="0.0.0.0", port=5000)
+
 
