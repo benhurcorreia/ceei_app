@@ -8,7 +8,7 @@ from flask_socketio import SocketIO, emit
 import zipfile
 
 app = Flask(__name__)
-socketio = SocketIO(app, cors_allowed_origins="*", async_mode="eventlet") # Permitir conexões de diferentes origens
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode="eventlet")  # Permitir conexões de diferentes origens
 UPLOAD_FOLDER = 'uploads'
 DOWNLOAD_FOLDER = 'downloads'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
@@ -16,6 +16,14 @@ os.makedirs(DOWNLOAD_FOLDER, exist_ok=True)
 
 results = []
 stop_flag = threading.Event()
+
+@app.after_request
+def set_headers(response):
+    """Adiciona cabeçalhos de segurança e compatibilidade."""
+    response.headers['Content-Type'] = 'text/html; charset=utf-8'
+    response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    return response
 
 @app.route('/')
 def index():
