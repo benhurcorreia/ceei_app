@@ -1,0 +1,7 @@
+flask
+flask-socketio
+pandas
+requests
+openpyxl
+beautifulsoup4
+eventlet

@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF Downloader</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.socket.io/4.5.1/socket.io.min.js"></script>
+</head>
+<body>
+    <div class="container mt-5">
+        <h1 class="text-center">PDF Downloader</h1>
+        
+        <!-- Formulário de Upload -->
+        <form id="upload-form" class="mt-4">
+            <div class="mb-3">
+                <label for="file" class="form-label">Selecione o arquivo Excel</label>
+                <input type="file" class="form-control" id="file" name="file" required>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Fonte de Download</label>
+                <select class="form-select" id="source" name="source" required>
+                    <option value="unpaywall">Unpaywall</option>
+                    <option value="scihub">Sci-Hub</option>
+                </select>
+            </div>
+            <button type="submit" class="btn btn-primary">Iniciar</button>
+        </form>
+
+        <!-- Botão de Interrupção -->
+        <div class="mt-3">
+            <button id="stop-button" class="btn btn-danger">Parar</button>
+        </div>
+
+        <!-- Progresso e Logs -->
+        <div class="mt-5">
+            <h3>Progresso</h3>
+            <div class="progress">
+                <div id="progress-bar" class="progress-bar" role="progressbar" style="width: 0%;"></div>
+            </div>
+            <p id="progress-text" class="mt-2">Aguardando início...</p>
+        </div>
+
+        <div class="mt-5">
+            <h3>Logs de Execução</h3>
+            <div id="log-container" style="border: 1px solid #ccc; padding: 10px; height: 300px; overflow-y: auto; background-color: #f8f9fa;"></div>
+        </div>
+
+        <!-- Botão para Download dos Arquivos -->
+        <div class="mt-5 text-center">
+            <button id="download-button" class="btn btn-success">Baixar Arquivos</button>
+        </div>
+    </div>
+
+    <script>
+        const socket = io();
+        const form = document.getElementById('upload-form');
+        const stopButton = document.getElementById('stop-button');
+        const progressBar = document.getElementById('progress-bar');
+        const progressText = document.getElementById('progress-text');
+        const logContainer = document.getElementById('log-container');
+        const downloadButton = document.getElementById('download-button');
+
+        // Submete o formulário de upload
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(form);
+            const response = await fetch('/upload', { method: 'POST', body: formData });
+            const result = await response.json();
+            alert(result.message || result.error);
+        });
+
+        // Envia requisição para parar o processamento
+        stopButton.addEventListener('click', async () => {
+            const response = await fetch('/stop', { method: 'POST' });
+            const result = await response.json();
+            alert(result.message);
+        });
+
+        // Atualiza os logs em tempo real
+        socket.on('log', (data) => {
+            const message = document.createElement('p');
+            message.textContent = data.message;
+            logContainer.appendChild(message);
+            logContainer.scrollTop = logContainer.scrollHeight;
+        });
+
+        // Atualiza o progresso em tempo real
+        socket.on('progress', (data) => {
+            const { current, total } = data;
+            const percentage = (current / total) * 100;
+            progressBar.style.width = `${percentage}%`;
+            progressText.textContent = `Processando ${current} de ${total}...`;
+        });
+
+        // Botão para baixar os arquivos compactados
+        downloadButton.addEventListener('click', () => {
+            window.location.href = '/download';
+        });
+    </script>
+</body>
+</html>
+
