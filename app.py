@@ -8,7 +8,7 @@ from flask_socketio import SocketIO, emit
 import zipfile
 
 app = Flask(__name__)
-socketio = SocketIO(app)
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode="eventlet") # Permitir conexões de diferentes origens
 UPLOAD_FOLDER = 'uploads'
 DOWNLOAD_FOLDER = 'downloads'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)

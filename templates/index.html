@@ -53,7 +53,7 @@
     </div>
 
     <script>
-        const socket = io();
+        const socket = io(window.location.origin);
         const form = document.getElementById('upload-form');
         const stopButton = document.getElementById('stop-button');
         const progressBar = document.getElementById('progress-bar');
@@ -81,8 +81,9 @@
         socket.on('log', (data) => {
             const message = document.createElement('p');
             message.textContent = data.message;
+            const logContainer = document.getElementById('log-container');
             logContainer.appendChild(message);
-            logContainer.scrollTop = logContainer.scrollHeight;
+            logContainer.scrollTop = logContainer.scrollHeight;  // Rolagem automática
         });
 
         // Atualiza o progresso em tempo real
