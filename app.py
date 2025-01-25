@@ -26,18 +26,23 @@ def clean_download_folder():
             shutil.rmtree(file_path)
 
 @app.after_request
-def add_header(response):
-    """Desabilitar cache para arquivos estáticos durante o desenvolvimento."""
+def set_headers(response):
+    """Configura os cabeçalhos para segurança, cache e tipos MIME corretos."""
+    # Definir tipo MIME com base no caminho solicitado
+    if request.path.endswith('.css'):
+        response.headers['Content-Type'] = 'text/css; charset=utf-8'
+    elif request.path.endswith('.js'):
+        response.headers['Content-Type'] = 'application/javascript; charset=utf-8'
+    elif request.path.endswith('.json'):
+        response.headers['Content-Type'] = 'application/json; charset=utf-8'
+    elif request.path.endswith('.html') or request.path == '/':
+        response.headers['Content-Type'] = 'text/html; charset=utf-8'
+
+    # Configurar cabeçalhos de cache e segurança
     if 'Cache-Control' not in response.headers:
         response.headers['Cache-Control'] = 'no-store'
-    return response
-
-@app.after_request
-def set_headers(response):
-    """Adiciona cabeçalhos de segurança e compatibilidade."""
-    response.headers['Content-Type'] = 'text/html; charset=utf-8'
-    response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
     response.headers['X-Content-Type-Options'] = 'nosniff'
+
     return response
 
 @app.route('/')
