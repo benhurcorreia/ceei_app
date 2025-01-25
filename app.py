@@ -26,6 +26,13 @@ def clean_download_folder():
             shutil.rmtree(file_path)
 
 @app.after_request
+def add_header(response):
+    """Desabilitar cache para arquivos estáticos durante o desenvolvimento."""
+    if 'Cache-Control' not in response.headers:
+        response.headers['Cache-Control'] = 'no-store'
+    return response
+
+@app.after_request
 def set_headers(response):
     """Adiciona cabeçalhos de segurança e compatibilidade."""
     response.headers['Content-Type'] = 'text/html; charset=utf-8'
