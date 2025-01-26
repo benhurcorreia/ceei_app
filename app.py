@@ -51,17 +51,21 @@ def index():
 
 @app.route('/upload', methods=['POST'])
 def upload_file():
-    file = request.files['file']
-    source = request.form.get('source')
-    if file:
-        file_path = os.path.join(UPLOAD_FOLDER, file.filename)
-        file.save(file_path)
-        # Start the download process in a separate thread
-        stop_flag.clear()
-        threading.Thread(target=process_file, args=(file_path, source)).start()
-        socketio.emit('log', {'message': 'Arquivo recebido e processamento iniciado!'}, broadcast=True)
-        return jsonify({'message': 'Arquivo enviado e processamento iniciado!'})
-    return jsonify({'error': 'Nenhum arquivo enviado.'}), 400
+    try:
+        file = request.files['file']
+        source = request.form.get('source')
+        if file:
+            file_path = os.path.join(UPLOAD_FOLDER, file.filename)
+            file.save(file_path)
+            # Start the download process in a separate thread
+            stop_flag.clear()
+            threading.Thread(target=process_file, args=(file_path, source)).start()
+            socketio.emit('log', {'message': 'Arquivo recebido e processamento iniciado!'}, broadcast=True)
+            return jsonify({'message': 'Arquivo enviado e processamento iniciado!'})
+        else:
+            return jsonify({'error': 'Nenhum arquivo enviado.'}), 400
+    except Exception as e:
+        return jsonify({'error': f'Ocorreu um erro: {str(e)}'}), 500
 
 @app.route('/stop', methods=['POST'])
 def stop_processing():
