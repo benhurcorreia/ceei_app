@@ -57,7 +57,6 @@ def upload_file():
         if file:
             file_path = os.path.join(UPLOAD_FOLDER, file.filename)
             file.save(file_path)
-            # Start the download process in a separate thread
             stop_flag.clear()
             threading.Thread(target=process_file, args=(file_path, source)).start()
             socketio.emit('log', {'message': 'Arquivo recebido e processamento iniciado!'}, broadcast=True)
@@ -65,7 +64,7 @@ def upload_file():
         else:
             return jsonify({'error': 'Nenhum arquivo enviado.'}), 400
     except Exception as e:
-        return jsonify({'error': f'Ocorreu um erro: {str(e)}'}), 500
+        return jsonify({'error': f"Ocorreu um erro no servidor: {str(e)}"}), 500
 
 @app.route('/stop', methods=['POST'])
 def stop_processing():
