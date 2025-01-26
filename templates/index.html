@@ -39,7 +39,7 @@
         <div class="mt-5">
             <h3>Progresso</h3>
             <div class="progress" role="progressbar" aria-valuemin="0" aria-valuemax="100">
-                <div id="progress-bar" class="progress-bar" style="width: 0%;" aria-live="polite" aria-label="Progresso de download"></div>
+                <div id="progress-bar" class="progress-bar" style="width: 0%;" aria-live="polite" aria-label="Progresso de download" role="progressbar" aria-valuenow="0"></div>
             </div>
             <p id="progress-text" class="mt-2">Aguardando início...</p>
         </div>
@@ -109,6 +109,7 @@
             const { current, total } = data;
             const percentage = (current / total) * 100;
             progressBar.style.width = `${percentage}%`;
+            progressBar.setAttribute('aria-valuenow', percentage.toFixed(0));
             progressText.textContent = `Processando ${current} de ${total}...`;
         });
 
@@ -127,3 +128,4 @@
     </script>
 </body>
 </html>
+

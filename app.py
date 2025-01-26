@@ -59,14 +59,14 @@ def upload_file():
         # Start the download process in a separate thread
         stop_flag.clear()
         threading.Thread(target=process_file, args=(file_path, source)).start()
-        socketio.emit('log', {'message': 'Arquivo recebido e processamento iniciado!'})
+        socketio.emit('log', {'message': 'Arquivo recebido e processamento iniciado!'}, broadcast=True)
         return jsonify({'message': 'Arquivo enviado e processamento iniciado!'})
     return jsonify({'error': 'Nenhum arquivo enviado.'}), 400
 
 @app.route('/stop', methods=['POST'])
 def stop_processing():
     stop_flag.set()
-    socketio.emit('log', {'message': 'Processamento interrompido pelo usuário.'})
+    socketio.emit('log', {'message': 'Processamento interrompido pelo usuário.'}, broadcast=True)
     return jsonify({'message': 'Processamento interrompido com sucesso!'})
 
 @app.route('/download', methods=['GET'])
@@ -83,7 +83,7 @@ def download_zip():
 def process_file(file_path, source):
     results = []
     try:
-        socketio.emit('log', {'message': 'Iniciando o processamento do arquivo...'})
+        socketio.emit('log', {'message': 'Iniciando o processamento do arquivo...'}, broadcast=True)
         df = pd.read_excel(file_path)
         if 'DOI' not in df.columns:
             raise ValueError("Coluna 'DOI' não encontrada no arquivo.")
@@ -91,22 +91,22 @@ def process_file(file_path, source):
         for index, doi in enumerate(df['DOI']):
             if stop_flag.is_set():
                 results.append({'DOI': doi, 'Status': "Interrompido pelo usuário", 'Fonte': source})
-                socketio.emit('log', {'message': f"Processamento interrompido no DOI: {doi}"})
+                socketio.emit('log', {'message': f"Processamento interrompido no DOI: {doi}"}, broadcast=True)
                 break
 
             save_path = os.path.join(DOWNLOAD_FOLDER, f"{doi.replace('/', '_')}.pdf")
-            socketio.emit('log', {'message': f"Processando DOI {index + 1}/{len(df)}: {doi}"})
+            socketio.emit('log', {'message': f"Processando DOI {index + 1}/{len(df)}: {doi}"}, broadcast=True)
 
             if source == 'unpaywall':
                 download_from_unpaywall(doi, save_path, results)
             elif source == 'scihub':
                 download_from_scihub(doi, save_path, results)
 
-            socketio.emit('progress', {'current': index + 1, 'total': len(df)})
+            socketio.emit('progress', {'current': index + 1, 'total': len(df)}, broadcast=True)
 
         generate_report(results)
     except Exception as e:
-        socketio.emit('log', {'message': f"Erro inesperado: {str(e)}"})
+        socketio.emit('log', {'message': f"Erro inesperado: {str(e)}"}, broadcast=True)
 
 def download_from_unpaywall(doi, save_path, results):
     base_url = "https://api.unpaywall.org/v2/"
@@ -166,7 +166,7 @@ def download_pdf(pdf_url, save_path, doi, source, results):
         with open(save_path, 'wb') as f:
             f.write(response.content)
         results.append({'DOI': doi, 'Status': 'Baixado', 'Fonte': source})
-        socketio.emit('log', {'message': f"PDF baixado com sucesso: DOI {doi}"})
+        socketio.emit('log', {'message': f"PDF baixado com sucesso: DOI {doi}"}, broadcast=True)
     except Exception as e:
         results.append({'DOI': doi, 'Status': f"Erro ao baixar PDF: {e}", 'Fonte': source})
 
@@ -174,7 +174,7 @@ def generate_report(results):
     report_path = os.path.join(DOWNLOAD_FOLDER, "relatorio_download.xlsx")
     df = pd.DataFrame(results)
     df.to_excel(report_path, index=False, engine='openpyxl')
-    socketio.emit('log', {'message': f"Relatório de download salvo em: {report_path}"})
+    socketio.emit('log', {'message': f"Relatório de download salvo em: {report_path}"}, broadcast=True)
 
 if __name__ == "__main__":
     socketio.run(app, host="0.0.0.0", port=5000)
